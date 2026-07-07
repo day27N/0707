@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>로또 추첨기</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #121212;
+      --surface: #181818;
+      --surface-2: #1f1f1f;
+      --surface-3: #252525;
+      --text: #ffffff;
+      --muted: #b3b3b3;
+      --soft: #cbcbcb;
+      --accent: #1ed760;
+      --accent-dark: #1db954;
+      --border: #4d4d4d;
+      --heavy-shadow: rgba(0, 0, 0, 0.5) 0 8px 24px;
+      --medium-shadow: rgba(0, 0, 0, 0.3) 0 8px 8px;
+      --font-stack: SpotifyMixUI, CircularSp-Arab, CircularSp-Hebr, CircularSp-Cyrl,
+        CircularSp-Grek, CircularSp-Deva, "Helvetica Neue", helvetica, arial,
+        "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, "MS Gothic",
+        "Noto Sans KR", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-stack);
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    main {
+      width: min(1180px, 100%);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: 20px;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 12px;
+    }
+
+    .topbar {
+      min-height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 12px;
+      background: #000000;
+      border-radius: 8px;
+      box-shadow: var(--medium-shadow);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .brand-mark {
+      width: 34px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #000000;
+      font-size: 18px;
+      font-weight: 900;
+    }
+
+    .status-pill {
+      padding: 8px 14px;
+      border-radius: 9999px;
+      background: var(--surface-2);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .app-shell {
+      display: grid;
+      grid-template-columns: 228px minmax(0, 1fr);
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .sidebar,
+    .machine,
+    .now-playing {
+      background: var(--surface);
+      border-radius: 8px;
+      box-shadow: var(--medium-shadow);
+    }
+
+    .sidebar {
+      padding: 18px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .nav-section {
+      display: grid;
+      gap: 8px;
+    }
+
+    .nav-title {
+      margin: 0 0 2px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.4px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 38px;
+      padding: 0 12px;
+      border-radius: 9999px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .nav-item.active {
+      background: var(--surface-2);
+      color: var(--text);
+    }
+
+    .nav-dot {
+      width: 10px;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .tip-card {
+      margin-top: auto;
+      padding: 14px;
+      border-radius: 8px;
+      background: var(--surface-2);
+    }
+
+    .tip-card strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+
+    .tip-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .machine {
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 312px;
+      min-height: 620px;
+    }
+
+    .stage {
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 24px;
+      background:
+        linear-gradient(180deg, rgba(30, 215, 96, 0.16) 0%, rgba(18, 18, 18, 0) 42%),
+        #121212;
+    }
+
+    .headline {
+      max-width: 650px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(34px, 6vw, 72px);
+      line-height: 0.96;
+      letter-spacing: 0;
+      font-weight: 900;
+    }
+
+    .subtitle {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.45;
+      font-weight: 400;
+    }
+
+    .drum-wrap {
+      display: grid;
+      place-items: center;
+      min-height: 270px;
+    }
+
+    .drum {
+      position: relative;
+      width: min(330px, 70vw);
+      aspect-ratio: 1;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 36% 24%, rgba(255, 255, 255, 0.22), transparent 19%),
+        radial-gradient(circle at 50% 58%, rgba(30, 215, 96, 0.15), transparent 50%),
+        #1f1f1f;
+      box-shadow:
+        rgb(18, 18, 18) 0 1px 0,
+        rgb(124, 124, 124) 0 0 0 1px inset,
+        inset 0 0 42px rgba(0, 0, 0, 0.7),
+        var(--heavy-shadow);
+    }
+
+    .drum::after {
+      content: "";
+      position: absolute;
+      inset: 24px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      pointer-events: none;
+    }
+
+    .drum.spinning {
+      animation: pulse 0.55s ease-in-out infinite alternate;
+    }
+
+    .mini-ball {
+      position: absolute;
+      width: 38px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: #000000;
+      background: var(--accent);
+      font-size: 13px;
+      font-weight: 900;
+      box-shadow: inset -5px -6px 9px rgba(0, 0, 0, 0.2), 0 8px 16px rgba(0, 0, 0, 0.45);
+      transform: translate(-50%, -50%);
+    }
+
+    .spinning .mini-ball {
+      animation: orbit 1.15s linear infinite;
+    }
+
+    .mini-ball:nth-child(1) { left: 28%; top: 34%; animation-delay: -0.1s; }
+    .mini-ball:nth-child(2) { left: 66%; top: 30%; animation-delay: -0.32s; }
+    .mini-ball:nth-child(3) { left: 76%; top: 62%; animation-delay: -0.54s; }
+    .mini-ball:nth-child(4) { left: 42%; top: 74%; animation-delay: -0.76s; }
+    .mini-ball:nth-child(5) { left: 24%; top: 58%; animation-delay: -0.98s; }
+
+    .draw-area {
+      display: grid;
+      gap: 10px;
+    }
+
+    .draw-label {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.4px;
+    }
+
+    .balls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      min-height: 66px;
+      align-items: center;
+    }
+
+    .ball {
+      width: 56px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: #000000;
+      background: var(--accent);
+      font-size: 22px;
+      font-weight: 900;
+      box-shadow: inset -6px -7px 10px rgba(0, 0, 0, 0.2), 0 9px 20px rgba(0, 0, 0, 0.5);
+      animation: pop 0.24s ease-out both;
+    }
+
+    .ball.bonus {
+      box-shadow:
+        0 0 0 4px rgba(30, 215, 96, 0.22),
+        inset -6px -7px 10px rgba(0, 0, 0, 0.2),
+        0 9px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .plus {
+      color: var(--muted);
+      font-size: 24px;
+      font-weight: 900;
+    }
+
+    .controls {
+      padding: 22px;
+      background: var(--surface);
+      border-left: 1px solid rgba(255, 255, 255, 0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel {
+      display: grid;
+      gap: 10px;
+    }
+
+    label,
+    .panel-title {
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    input[type="number"] {
+      width: 100%;
+      height: 46px;
+      border: 0;
+      border-radius: 500px;
+      padding: 0 18px;
+      color: var(--text);
+      background: var(--surface-2);
+      box-shadow: rgb(18, 18, 18) 0 1px 0, rgb(124, 124, 124) 0 0 0 1px inset;
+      outline: 0;
+    }
+
+    input[type="number"]:focus {
+      box-shadow: rgb(18, 18, 18) 0 1px 0, var(--accent) 0 0 0 2px inset;
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 40px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .toggle input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--accent);
+    }
+
+    button {
+      min-height: 48px;
+      border: 0;
+      border-radius: 9999px;
+      padding: 0 18px;
+      color: #000000;
+      background: var(--accent);
+      font-size: 14px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1.4px;
+      cursor: pointer;
+      transition: transform 0.15s ease, filter 0.15s ease, background-color 0.15s ease;
+    }
+
+    button:hover {
+      background: #3be477;
+      transform: scale(1.025);
+    }
+
+    button:active {
+      transform: scale(0.99);
+    }
+
+    button:disabled {
+      cursor: wait;
+      filter: grayscale(0.5);
+      opacity: 0.72;
+    }
+
+    button.secondary {
+      color: var(--text);
+      background: var(--surface-2);
+      box-shadow: rgb(124, 124, 124) 0 0 0 1px inset;
+    }
+
+    button.secondary:hover {
+      background: var(--surface-3);
+    }
+
+    .history {
+      display: grid;
+      gap: 8px;
+      max-height: 244px;
+      overflow: auto;
+      padding-right: 2px;
+    }
+
+    .ticket {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px;
+      border-radius: 6px;
+      background: var(--surface-2);
+    }
+
+    .ticket span {
+      width: 28px;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: #000000;
+      background: var(--accent);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .ticket strong {
+      color: var(--muted);
+    }
+
+    .empty {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .now-playing {
+      min-height: 84px;
+      padding: 14px 16px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 14px;
+      background: #000000;
+    }
+
+    .cover {
+      width: 54px;
+      aspect-ratio: 1;
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      background: var(--accent);
+      color: #000000;
+      font-weight: 900;
+      box-shadow: var(--medium-shadow);
+    }
+
+    .track-title {
+      margin: 0 0 4px;
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .track-meta {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .play-button {
+      width: 48px;
+      min-height: 48px;
+      padding: 0;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    @keyframes orbit {
+      0% { translate: 0 0; }
+      25% { translate: 30px -18px; }
+      50% { translate: 7px 34px; }
+      75% { translate: -32px 12px; }
+      100% { translate: 0 0; }
+    }
+
+    @keyframes pulse {
+      from { transform: rotate(-1deg) scale(0.995); }
+      to { transform: rotate(1deg) scale(1.01); }
+    }
+
+    @keyframes pop {
+      from { transform: scale(0.4); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    @media (max-width: 900px) {
+      main {
+        padding: 12px;
+      }
+
+      .app-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        display: none;
+      }
+
+      .machine {
+        grid-template-columns: 1fr;
+        min-height: auto;
+      }
+
+      .controls {
+        border-left: 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.04);
+      }
+    }
+
+    @media (max-width: 520px) {
+      .topbar,
+      .now-playing {
+        grid-template-columns: auto 1fr;
+      }
+
+      .status-pill {
+        display: none;
+      }
+
+      .stage,
+      .controls {
+        padding: 18px;
+      }
+
+      .ball {
+        width: 48px;
+        font-size: 19px;
+      }
+
+      .now-playing {
+        grid-template-columns: auto 1fr auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">L</span>
+        <span>Lotto Mixer</span>
+      </div>
+      <div class="status-pill">Random draw 1-45</div>
+    </header>
+
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="추첨 메뉴">
+        <nav class="nav-section">
+          <p class="nav-title">Library</p>
+          <div class="nav-item active"><span class="nav-dot"></span> 로또 추첨</div>
+          <div class="nav-item"><span class="nav-dot"></span> 기록 보기</div>
+          <div class="nav-item"><span class="nav-dot"></span> 자동 번호</div>
+        </nav>
+
+        <div class="tip-card">
+          <strong>오늘의 믹스</strong>
+          <p>1부터 45까지 중복 없이 섞고, 마지막 번호는 보너스로 분리합니다.</p>
+        </div>
+      </aside>
+
+      <section class="machine" aria-label="로또 추첨기">
+        <div class="stage">
+          <div class="headline">
+            <h1>로또 추첨기</h1>
+            <p class="subtitle">어두운 플레이어 안에서 번호를 섞고, 6개 번호와 보너스 번호를 한 번에 뽑습니다.</p>
+          </div>
+
+          <div class="drum-wrap" aria-hidden="true">
+            <div class="drum" id="drum">
+              <span class="mini-ball">7</span>
+              <span class="mini-ball">18</span>
+              <span class="mini-ball">24</span>
+              <span class="mini-ball">33</span>
+              <span class="mini-ball">41</span>
+            </div>
+          </div>
+
+          <div class="draw-area">
+            <p class="draw-label">Current Ticket</p>
+            <div class="balls" id="balls" aria-live="polite">
+              <span class="empty">추첨 버튼을 눌러 번호를 뽑아보세요.</span>
+            </div>
+          </div>
+        </div>
+
+        <aside class="controls">
+          <div class="panel">
+            <label for="count">자동 추첨 횟수</label>
+            <input id="count" type="number" min="1" max="10" value="1">
+          </div>
+
+          <label class="toggle">
+            <input id="sortNumbers" type="checkbox" checked>
+            번호 오름차순 정렬
+          </label>
+
+          <button id="drawButton" type="button">추첨하기</button>
+          <button class="secondary" id="clearButton" type="button">기록 지우기</button>
+
+          <div class="panel">
+            <div class="panel-title">추첨 기록</div>
+            <div class="history" id="history">
+              <div class="empty">아직 기록이 없습니다.</div>
+            </div>
+          </div>
+        </aside>
+      </section>
+    </div>
+
+    <footer class="now-playing">
+      <div class="cover">45</div>
+      <div>
+        <p class="track-title">Lucky Number Session</p>
+        <p class="track-meta">무작위 추첨 대기 중</p>
+      </div>
+      <button class="play-button" id="footerDrawButton" type="button" aria-label="추첨하기">▶</button>
+    </footer>
+  </main>
+
+  <script>
+    const ballsEl = document.querySelector("#balls");
+    const historyEl = document.querySelector("#history");
+    const drumEl = document.querySelector("#drum");
+    const countInput = document.querySelector("#count");
+    const sortInput = document.querySelector("#sortNumbers");
+    const drawButton = document.querySelector("#drawButton");
+    const footerDrawButton = document.querySelector("#footerDrawButton");
+    const clearButton = document.querySelector("#clearButton");
+    const trackMeta = document.querySelector(".track-meta");
+
+    const shuffle = (items) => {
+      const result = [...items];
+      for (let i = result.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [result[i], result[j]] = [result[j], result[i]];
+      }
+      return result;
+    };
+
+    const drawTicket = () => {
+      const pool = Array.from({ length: 45 }, (_, index) => index + 1);
+      const picked = shuffle(pool).slice(0, 7);
+      const main = picked.slice(0, 6);
+      const bonus = picked[6];
+      return {
+        main: sortInput.checked ? main.sort((a, b) => a - b) : main,
+        bonus
+      };
+    };
+
+    const createBall = (number, isBonus = false) => {
+      const ball = document.createElement("span");
+      ball.className = isBonus ? "ball bonus" : "ball";
+      ball.textContent = number;
+      ball.setAttribute("aria-label", isBonus ? `보너스 번호 ${number}` : `번호 ${number}`);
+      return ball;
+    };
+
+    const renderCurrent = (ticket) => {
+      ballsEl.replaceChildren();
+      ticket.main.forEach((number) => ballsEl.append(createBall(number)));
+
+      const plus = document.createElement("span");
+      plus.className = "plus";
+      plus.textContent = "+";
+      ballsEl.append(plus, createBall(ticket.bonus, true));
+
+      trackMeta.textContent = `${ticket.main.join(", ")} + ${ticket.bonus}`;
+    };
+
+    const addHistory = (ticket) => {
+      if (historyEl.querySelector(".empty")) {
+        historyEl.replaceChildren();
+      }
+
+      const row = document.createElement("div");
+      row.className = "ticket";
+
+      [...ticket.main, ticket.bonus].forEach((number, index) => {
+        if (index === 6) {
+          const plus = document.createElement("strong");
+          plus.textContent = "+";
+          row.append(plus);
+        }
+
+        const item = document.createElement("span");
+        item.textContent = number;
+        row.append(item);
+      });
+
+      historyEl.prepend(row);
+    };
+
+    const setButtonsDisabled = (disabled) => {
+      drawButton.disabled = disabled;
+      footerDrawButton.disabled = disabled;
+    };
+
+    const draw = async () => {
+      const count = Math.min(10, Math.max(1, Number(countInput.value) || 1));
+      countInput.value = count;
+      setButtonsDisabled(true);
+      drumEl.classList.add("spinning");
+      trackMeta.textContent = "번호를 섞는 중";
+
+      for (let i = 0; i < count; i += 1) {
+        const ticket = drawTicket();
+        await new Promise((resolve) => setTimeout(resolve, i === 0 ? 520 : 260));
+        renderCurrent(ticket);
+        addHistory(ticket);
+      }
+
+      drumEl.classList.remove("spinning");
+      setButtonsDisabled(false);
+      drawButton.focus();
+    };
+
+    drawButton.addEventListener("click", draw);
+    footerDrawButton.addEventListener("click", draw);
+    clearButton.addEventListener("click", () => {
+      historyEl.innerHTML = '<div class="empty">아직 기록이 없습니다.</div>';
+      ballsEl.innerHTML = '<span class="empty">추첨 버튼을 눌러 번호를 뽑아보세요.</span>';
+      trackMeta.textContent = "무작위 추첨 대기 중";
+    });
+  </script>
+</body>
+</html>
