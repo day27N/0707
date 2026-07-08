@@ -788,9 +788,23 @@
       setStatus(`Supabase 연결됨 · 최근 ${data.length}개`);
     };
 
+    const trackDrawClick = (count) => {
+      if (typeof window.gtag !== "function") {
+        return;
+      }
+
+      window.gtag("event", "draw_lotto", {
+        event_category: "lotto",
+        event_label: "draw_button",
+        draw_count: count,
+        value: 1
+      });
+    };
+
     const draw = async () => {
       const count = Math.min(10, Math.max(1, Number(countInput.value) || 1));
       countInput.value = count;
+      trackDrawClick(count);
       setButtonsDisabled(true);
       drumEl.classList.add("spinning");
       trackMeta.textContent = "번호를 뽑는 중";
