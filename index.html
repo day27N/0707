@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>로또 추첨기</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     :root {
       color-scheme: dark;
@@ -13,16 +14,11 @@
       --surface-3: #252525;
       --text: #ffffff;
       --muted: #b3b3b3;
-      --soft: #cbcbcb;
       --accent: #1ed760;
-      --accent-dark: #1db954;
       --border: #4d4d4d;
       --heavy-shadow: rgba(0, 0, 0, 0.5) 0 8px 24px;
       --medium-shadow: rgba(0, 0, 0, 0.3) 0 8px 8px;
-      --font-stack: SpotifyMixUI, CircularSp-Arab, CircularSp-Hebr, CircularSp-Cyrl,
-        CircularSp-Grek, CircularSp-Deva, "Helvetica Neue", helvetica, arial,
-        "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, "MS Gothic",
-        "Noto Sans KR", sans-serif;
+      --font-stack: "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", Arial, sans-serif;
     }
 
     * {
@@ -85,12 +81,16 @@
     }
 
     .status-pill {
+      max-width: 56vw;
       padding: 8px 14px;
       border-radius: 9999px;
       background: var(--surface-2);
       color: var(--muted);
       font-size: 12px;
       font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .app-shell {
@@ -208,7 +208,6 @@
       color: var(--muted);
       font-size: 16px;
       line-height: 1.45;
-      font-weight: 400;
     }
 
     .drum-wrap {
@@ -271,7 +270,8 @@
     .mini-ball:nth-child(4) { left: 42%; top: 74%; animation-delay: -0.76s; }
     .mini-ball:nth-child(5) { left: 24%; top: 58%; animation-delay: -0.98s; }
 
-    .draw-area {
+    .draw-area,
+    .panel {
       display: grid;
       gap: 10px;
     }
@@ -327,11 +327,6 @@
       display: flex;
       flex-direction: column;
       gap: 16px;
-    }
-
-    .panel {
-      display: grid;
-      gap: 10px;
     }
 
     label,
@@ -440,6 +435,7 @@
       background: var(--accent);
       font-size: 12px;
       font-weight: 900;
+      flex: 0 0 auto;
     }
 
     .ticket strong {
@@ -540,13 +536,13 @@
     }
 
     @media (max-width: 520px) {
-      .topbar,
-      .now-playing {
-        grid-template-columns: auto 1fr;
+      .topbar {
+        align-items: flex-start;
+        flex-direction: column;
       }
 
       .status-pill {
-        display: none;
+        max-width: 100%;
       }
 
       .stage,
@@ -558,10 +554,6 @@
         width: 48px;
         font-size: 19px;
       }
-
-      .now-playing {
-        grid-template-columns: auto 1fr auto;
-      }
     }
   </style>
 </head>
@@ -572,7 +564,7 @@
         <span class="brand-mark">L</span>
         <span>Lotto Mixer</span>
       </div>
-      <div class="status-pill">Random draw 1-45</div>
+      <div class="status-pill" id="dbStatus">Supabase 연결 준비 중</div>
     </header>
 
     <div class="app-shell">
@@ -586,7 +578,7 @@
 
         <div class="tip-card">
           <strong>오늘의 믹스</strong>
-          <p>1부터 45까지 중복 없이 섞고, 마지막 번호는 보너스로 분리합니다.</p>
+          <p>1부터 45까지 중복 없이 뽑고, 마지막 번호는 보너스로 분리합니다. 추첨 결과는 Supabase에 저장됩니다.</p>
         </div>
       </aside>
 
@@ -594,7 +586,7 @@
         <div class="stage">
           <div class="headline">
             <h1>로또 추첨기</h1>
-            <p class="subtitle">어두운 플레이어 안에서 번호를 섞고, 6개 번호와 보너스 번호를 한 번에 뽑습니다.</p>
+            <p class="subtitle">버튼을 누르면 번호 6개와 보너스 번호 1개를 뽑고, 최근 기록을 DB에서 다시 불러옵니다.</p>
           </div>
 
           <div class="drum-wrap" aria-hidden="true">
@@ -617,7 +609,7 @@
 
         <aside class="controls">
           <div class="panel">
-            <label for="count">자동 추첨 횟수</label>
+            <label for="count">자동 추첨 장수</label>
             <input id="count" type="number" min="1" max="10" value="1">
           </div>
 
@@ -627,10 +619,11 @@
           </label>
 
           <button id="drawButton" type="button">추첨하기</button>
-          <button class="secondary" id="clearButton" type="button">기록 지우기</button>
+          <button class="secondary" id="reloadButton" type="button">DB 기록 새로고침</button>
+          <button class="secondary" id="clearButton" type="button">화면 기록 지우기</button>
 
           <div class="panel">
-            <div class="panel-title">추첨 기록</div>
+            <div class="panel-title">최근 DB 기록</div>
             <div class="history" id="history">
               <div class="empty">아직 기록이 없습니다.</div>
             </div>
@@ -650,6 +643,10 @@
   </main>
 
   <script>
+    const SUPABASE_URL = "https://megfyrgyfpoagoaummbg.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1lZ2Z5cmd5ZnBvYWdvYXVtbWJnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM0NTkyNzgsImV4cCI6MjA5OTAzNTI3OH0.mC4yeY-M_61iRh8A2Wg72T50c5_zQXLG_Zi_qMVHvko";
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
     const ballsEl = document.querySelector("#balls");
     const historyEl = document.querySelector("#history");
     const drumEl = document.querySelector("#drum");
@@ -657,8 +654,14 @@
     const sortInput = document.querySelector("#sortNumbers");
     const drawButton = document.querySelector("#drawButton");
     const footerDrawButton = document.querySelector("#footerDrawButton");
+    const reloadButton = document.querySelector("#reloadButton");
     const clearButton = document.querySelector("#clearButton");
     const trackMeta = document.querySelector(".track-meta");
+    const dbStatus = document.querySelector("#dbStatus");
+
+    const setStatus = (message) => {
+      dbStatus.textContent = message;
+    };
 
     const shuffle = (items) => {
       const result = [...items];
@@ -674,6 +677,7 @@
       const picked = shuffle(pool).slice(0, 7);
       const main = picked.slice(0, 6);
       const bonus = picked[6];
+
       return {
         main: sortInput.checked ? main.sort((a, b) => a - b) : main,
         bonus
@@ -700,11 +704,7 @@
       trackMeta.textContent = `${ticket.main.join(", ")} + ${ticket.bonus}`;
     };
 
-    const addHistory = (ticket) => {
-      if (historyEl.querySelector(".empty")) {
-        historyEl.replaceChildren();
-      }
-
+    const createHistoryRow = (ticket) => {
       const row = document.createElement("div");
       row.className = "ticket";
 
@@ -720,12 +720,63 @@
         row.append(item);
       });
 
-      historyEl.prepend(row);
+      return row;
+    };
+
+    const renderHistory = (tickets) => {
+      historyEl.replaceChildren();
+
+      if (tickets.length === 0) {
+        historyEl.innerHTML = '<div class="empty">아직 기록이 없습니다.</div>';
+        return;
+      }
+
+      tickets.forEach((ticket) => historyEl.append(createHistoryRow(ticket)));
+    };
+
+    const addHistoryToTop = (ticket) => {
+      if (historyEl.querySelector(".empty")) {
+        historyEl.replaceChildren();
+      }
+
+      historyEl.prepend(createHistoryRow(ticket));
     };
 
     const setButtonsDisabled = (disabled) => {
       drawButton.disabled = disabled;
       footerDrawButton.disabled = disabled;
+      reloadButton.disabled = disabled;
+    };
+
+    const saveTicket = async (ticket) => {
+      const { error } = await db.from("lotto_draws").insert({
+        main_numbers: ticket.main,
+        bonus_number: ticket.bonus
+      });
+
+      if (error) {
+        throw error;
+      }
+    };
+
+    const loadHistory = async () => {
+      setStatus("DB 기록 불러오는 중");
+      const { data, error } = await db
+        .from("lotto_draws")
+        .select("main_numbers, bonus_number, created_at")
+        .order("created_at", { ascending: false })
+        .limit(30);
+
+      if (error) {
+        setStatus(`DB 오류: ${error.message}`);
+        return;
+      }
+
+      renderHistory(data.map((row) => ({
+        main: row.main_numbers,
+        bonus: row.bonus_number
+      })));
+      setStatus(`Supabase 연결됨 · 최근 ${data.length}개`);
     };
 
     const draw = async () => {
@@ -733,27 +784,37 @@
       countInput.value = count;
       setButtonsDisabled(true);
       drumEl.classList.add("spinning");
-      trackMeta.textContent = "번호를 섞는 중";
+      trackMeta.textContent = "번호를 뽑는 중";
 
-      for (let i = 0; i < count; i += 1) {
-        const ticket = drawTicket();
-        await new Promise((resolve) => setTimeout(resolve, i === 0 ? 520 : 260));
-        renderCurrent(ticket);
-        addHistory(ticket);
+      try {
+        for (let i = 0; i < count; i += 1) {
+          const ticket = drawTicket();
+          await new Promise((resolve) => setTimeout(resolve, i === 0 ? 520 : 260));
+          renderCurrent(ticket);
+          await saveTicket(ticket);
+          addHistoryToTop(ticket);
+        }
+
+        setStatus(`${count}장 저장 완료`);
+      } catch (error) {
+        setStatus(`저장 실패: ${error.message}`);
+      } finally {
+        drumEl.classList.remove("spinning");
+        setButtonsDisabled(false);
+        drawButton.focus();
       }
-
-      drumEl.classList.remove("spinning");
-      setButtonsDisabled(false);
-      drawButton.focus();
     };
 
     drawButton.addEventListener("click", draw);
     footerDrawButton.addEventListener("click", draw);
+    reloadButton.addEventListener("click", loadHistory);
     clearButton.addEventListener("click", () => {
-      historyEl.innerHTML = '<div class="empty">아직 기록이 없습니다.</div>';
+      historyEl.innerHTML = '<div class="empty">화면 기록을 지웠습니다. DB 기록은 삭제되지 않습니다.</div>';
       ballsEl.innerHTML = '<span class="empty">추첨 버튼을 눌러 번호를 뽑아보세요.</span>';
       trackMeta.textContent = "무작위 추첨 대기 중";
     });
+
+    loadHistory();
   </script>
 </body>
 </html>
